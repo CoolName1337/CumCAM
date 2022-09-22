@@ -17,17 +17,43 @@ namespace CumCAM
 {
     public partial class MainWindow : Window
     {
+        public Shape takedShape;
+        public Point? p1, p2;
+        public int radius = 100;
+
         public MainWindow()
         {
             InitializeComponent();
+            TakedShapes.InitializeCanvas(handleCanvas);
+            //CreateSample(300,300);
         }
 
         private void handleCanvas_MouseMove(object sender, MouseEventArgs e)
         {
-            if(aimCanvas.Visibility == Visibility.Hidden) aimCanvas.Visibility = Visibility.Visible;
+            if (aimCanvas.Visibility == Visibility.Hidden) aimCanvas.Visibility = Visibility.Visible;
             Point p = e.GetPosition(handleCanvas);
             posLabel.Content = p;
             SetAim(p);
+            
+            if (p1 == null && (takedShape == TakedShapes.line || takedShape == TakedShapes.rectangle)) return;
+            
+            switch (takedShape)
+            {
+                case Line line:
+                    line.X1 = p1.Value.X;
+                    line.Y1 = p1.Value.Y;
+                    line.X2 = p.X;
+                    line.Y2 = p.Y;
+                    break;
+                case Ellipse ellipse:
+                    ellipse.Width = ellipse.Height = radius*2;
+                    Canvas.SetTop(ellipse, p.Y - radius);
+                    Canvas.SetLeft(ellipse, p.X - radius);
+                    break;
+                case Rectangle rectangle:
+                    SetRectangle(rectangle, p1.Value, p);
+                    break;
+            }
         }
         private void handleCanvas_MouseLeave(object sender, MouseEventArgs e)
         {
@@ -39,6 +65,7 @@ namespace CumCAM
         private void SetAim(Point p)
         {
             //sorry...
+            //ok...
             _horizLine.X1 = _vertLine.Y1 = 0;
 
             _vertLine.X2 = _vertLine.X1 = Clamp(p.X, handleCanvas.ActualWidth);
@@ -50,10 +77,134 @@ namespace CumCAM
 
         private void figuresPanel_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.Source is Rectangle rect)
+
+            if (e.Source is Shape shape)
             {
+                ResetRectColor();
+                UidDetect(shape.Uid).Fill = new SolidColorBrush(Colors.DarkGray);
+                switch (Convert.ToInt32(shape.Uid))
+                {
+                    case 0:
+                        takedShape = TakedShapes.line;
+                        TakedShapes.ellipse.Visibility = Visibility.Hidden;
+                        break;
+                    case 1:
+                        takedShape = TakedShapes.ellipse;
+                        TakedShapes.ellipse.Visibility = Visibility.Visible;
+                        break;
+                    case 2:
+                        takedShape = TakedShapes.rectangle;
+                        TakedShapes.ellipse.Visibility = Visibility.Hidden;
+                        break;
+                }
                 resTextBox.Text += "clicked\n";
             }
+        }
+
+        private void ResetRectColor()
+        {
+            foreach (Grid grid in figuresPanel.Children)
+            {
+                (grid.Children[0] as Rectangle).Fill = new SolidColorBrush(Colors.LightGray);
+            }
+        }
+
+        private Rectangle UidDetect(string Uid)
+        {
+            foreach (Grid grid in figuresPanel.Children)
+            {
+                Rectangle rect = grid.Children[0] as Rectangle;
+                if (rect.Uid == Uid) return rect;
+            }
+            return null;
+        }
+
+        private void handleCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            switch (takedShape)
+            {
+                case Line:
+                    DrawLine(e);
+                    break;
+                case Ellipse:
+                    DrawEllipse(e);
+                    break;
+                case Rectangle:
+                    DrawRectangle(e);
+                    break;
+            }
+        }
+
+        public void DrawLine(MouseButtonEventArgs e)
+        {
+            if (p1 != null) p2 = e.GetPosition(handleCanvas);
+            if (p2 == null) p1 = e.GetPosition(handleCanvas);
+            if (p1 != null && p2 != null)
+            {
+                Line line = new Line() { X1 = p1.Value.X, Y1 = p1.Value.Y, X2 = p2.Value.X, Y2 = p2.Value.Y, StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black) };
+                handleCanvas.Children.Add(line);
+                p1 = null;
+                p2 = null;
+            }
+        }
+
+        public void DrawEllipse(MouseButtonEventArgs e)
+        {
+            Ellipse ellipse = new Ellipse() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black), Width = radius * 2, Height = radius * 2 };
+            Canvas.SetTop(ellipse, e.GetPosition(handleCanvas).Y - radius);
+            Canvas.SetLeft(ellipse, e.GetPosition(handleCanvas).X - radius);
+            handleCanvas.Children.Add(ellipse);
+        }
+
+        public void DrawRectangle(MouseButtonEventArgs e)
+        {
+            
+            if (p1 != null) p2 = e.GetPosition(handleCanvas);
+            if (p2 == null) p1 = e.GetPosition(handleCanvas);
+            if (p1 != null && p2 != null)
+            {
+                Rectangle rectangle = new Rectangle() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black)};
+                SetRectangle(rectangle, p1.Value, p2.Value);
+                handleCanvas.Children.Add(rectangle);
+                p1 = null;
+                p2 = null;
+            }
+        }
+
+        private void SetRectangle(Rectangle rect, Point _p1, Point _p2)
+        {
+            double height = _p2.Y - _p1.Y;
+            double width = _p2.X - _p1.X;
+
+            rect.Height = Math.Abs(height);
+            rect.Width = Math.Abs(width);
+
+            Canvas.SetTop(rect, height > 0 ? _p1.Y : _p1.Y + height);
+            Canvas.SetLeft(rect, width > 0 ? _p1.X : _p1.X + width);
+        }
+
+        public void CreateSample(int width, int height)
+        {
+            Rectangle rect = new Rectangle() { Width = width, Height = height, Stroke = new SolidColorBrush(Colors.Aquamarine), StrokeThickness = 2};
+            Canvas.SetTop(rect, handleCanvas.ActualHeight / 2 + height / 2 );
+            Canvas.SetLeft(rect, handleCanvas.ActualWidth / 2 + width / 2);
+            handleCanvas.Children.Add(rect);
+        }
+    } 
+
+    public static class TakedShapes
+    {
+       
+
+        public static Line line = new Line() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) };
+        public static Ellipse ellipse = new Ellipse() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) };
+        public static Rectangle rectangle = new Rectangle() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) };
+
+        public static void InitializeCanvas(Panel handle)
+        {
+            handle.Children.Add(line);
+            handle.Children.Add(ellipse);
+            handle.Children.Add(rectangle);
         }
     }
 }
