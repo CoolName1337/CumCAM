@@ -20,21 +20,49 @@ namespace CumCAM
         public Shape takedShape;
         public Point? p1, p2;
         public int radius = 100;
+        private double kSize = 1;
+        int step = 1;
+        delegate void DrawDelegate(MouseButtonEventArgs e);
+        DrawDelegate Draw;
 
         public MainWindow()
         {
             InitializeComponent();
-            TakedShapes.InitializeCanvas(handleCanvas);
+            TakedShapes.InitializeCanvas(scaleCanvas);
+            InitializeAll();
             //CreateSample(300,300);
+        }
+
+        private void InitializeAll()
+        {
+            Canvas.SetTop(scaleCanvas, 0);
+            Canvas.SetLeft(scaleCanvas, 0);
+        }
+
+        private Point ChangeValues(Point p)                                                                 // Для получения кратных координат, возвращает координаты кратные int step (по умолчанию step = 5).
+        {
+            int changedValueX = Convert.ToInt32(p.X - p.X % step);
+            int changedValueY = Convert.ToInt32(p.Y - p.Y % step);
+            Point newP = new Point(changedValueX, changedValueY);
+            return newP;
         }
 
         private void handleCanvas_MouseMove(object sender, MouseEventArgs e)
         {
+            
             if (aimCanvas.Visibility == Visibility.Hidden) aimCanvas.Visibility = Visibility.Visible;
-            Point p = e.GetPosition(handleCanvas);
+            Point p = e.GetPosition(scaleCanvas);
+            p = ChangeValues(p);                                                                            // округление координат точки сразу после получения этих координат
             posLabel.Content = p;
             SetAim(p);
-            
+
+            if (isMoved)
+            {
+                Vector delta = e.GetPosition(scaleCanvas)-LastMouseWheelPos;
+                Canvas.SetTop(scaleCanvas, Canvas.GetTop(scaleCanvas)+delta.Y * kSize);
+                Canvas.SetLeft(scaleCanvas, Canvas.GetLeft(scaleCanvas)+delta.X * kSize);
+            }
+
             if (p1 == null && (takedShape == TakedShapes.line || takedShape == TakedShapes.rectangle)) return;
             
             switch (takedShape)
@@ -65,19 +93,19 @@ namespace CumCAM
         private void SetAim(Point p)
         {
             //sorry...
-            //ok...
+            //ok... sorry...
             _horizLine.X1 = _vertLine.Y1 = 0;
 
-            _vertLine.X2 = _vertLine.X1 = Clamp(p.X, handleCanvas.ActualWidth);
-            _vertLine.Y2 = handleCanvas.ActualHeight;
+            _vertLine.X2 = _vertLine.X1 = Clamp(p.X, scaleCanvas.ActualWidth);
+            _vertLine.Y2 = scaleCanvas.ActualHeight;
 
-            _horizLine.Y2 = _horizLine.Y1 = Clamp(p.Y, handleCanvas.ActualHeight);
-            _horizLine.X2 = handleCanvas.ActualWidth;
+            _horizLine.Y2 = _horizLine.Y1 = Clamp(p.Y, scaleCanvas.ActualHeight);
+            _horizLine.X2 = scaleCanvas.ActualWidth;
         }
 
         private void figuresPanel_MouseDown(object sender, MouseButtonEventArgs e)
         {
-
+           
             if (e.Source is Shape shape)
             {
                 ResetRectColor();
@@ -87,17 +115,22 @@ namespace CumCAM
                     case 0:
                         takedShape = TakedShapes.line;
                         TakedShapes.ellipse.Visibility = Visibility.Hidden;
+                        Draw = (e) => DrawLine(e);
+                        resTextBox.Text += "Line\n";
                         break;
                     case 1:
                         takedShape = TakedShapes.ellipse;
                         TakedShapes.ellipse.Visibility = Visibility.Visible;
+                        Draw = (e) => DrawEllipse(e);
+                        resTextBox.Text += "Ellipse\n";
                         break;
                     case 2:
                         takedShape = TakedShapes.rectangle;
                         TakedShapes.ellipse.Visibility = Visibility.Hidden;
+                        Draw = (e) => DrawRectangle(e);
+                        resTextBox.Text += "Rectangle\n";
                         break;
                 }
-                resTextBox.Text += "clicked\n";
             }
         }
 
@@ -121,28 +154,17 @@ namespace CumCAM
 
         private void handleCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            switch (takedShape)
-            {
-                case Line:
-                    DrawLine(e);
-                    break;
-                case Ellipse:
-                    DrawEllipse(e);
-                    break;
-                case Rectangle:
-                    DrawRectangle(e);
-                    break;
-            }
+            Draw?.Invoke(e);
         }
 
         public void DrawLine(MouseButtonEventArgs e)
         {
-            if (p1 != null) p2 = e.GetPosition(handleCanvas);
-            if (p2 == null) p1 = e.GetPosition(handleCanvas);
+            if (p1 != null) p2 = e.GetPosition(scaleCanvas);
+            if (p2 == null) p1 = e.GetPosition(scaleCanvas);
             if (p1 != null && p2 != null)
             {
-                Line line = new Line() { X1 = p1.Value.X, Y1 = p1.Value.Y, X2 = p2.Value.X, Y2 = p2.Value.Y, StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black) };
-                handleCanvas.Children.Add(line);
+                Line line = new() { X1 = p1.Value.X, Y1 = p1.Value.Y, X2 = p2.Value.X, Y2 = p2.Value.Y, StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black) };
+                CanvasAdd(line);
                 p1 = null;
                 p2 = null;
             }
@@ -150,22 +172,23 @@ namespace CumCAM
 
         public void DrawEllipse(MouseButtonEventArgs e)
         {
-            Ellipse ellipse = new Ellipse() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black), Width = radius * 2, Height = radius * 2 };
-            Canvas.SetTop(ellipse, e.GetPosition(handleCanvas).Y - radius);
-            Canvas.SetLeft(ellipse, e.GetPosition(handleCanvas).X - radius);
-            handleCanvas.Children.Add(ellipse);
+
+            Ellipse ellipse = new() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black), Width = radius * 2, Height = radius * 2 };
+            Canvas.SetTop(ellipse, e.GetPosition(scaleCanvas).Y - radius);
+            Canvas.SetLeft(ellipse, e.GetPosition(scaleCanvas).X - radius);
+            CanvasAdd(ellipse);
         }
 
         public void DrawRectangle(MouseButtonEventArgs e)
         {
             
-            if (p1 != null) p2 = e.GetPosition(handleCanvas);
-            if (p2 == null) p1 = e.GetPosition(handleCanvas);
+            if (p1 != null) p2 = e.GetPosition(scaleCanvas);
+            if (p2 == null) p1 = e.GetPosition(scaleCanvas);
             if (p1 != null && p2 != null)
             {
-                Rectangle rectangle = new Rectangle() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black)};
+                Rectangle rectangle = new() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black)};
                 SetRectangle(rectangle, p1.Value, p2.Value);
-                handleCanvas.Children.Add(rectangle);
+                CanvasAdd(rectangle);
                 p1 = null;
                 p2 = null;
             }
@@ -183,22 +206,60 @@ namespace CumCAM
             Canvas.SetLeft(rect, width > 0 ? _p1.X : _p1.X + width);
         }
 
+        private void handleCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            kSize += e.Delta > 0 ? 0.1 : (e.Delta < 0 ? -0.1 : 0);
+            kSize = kSize > 3 ? 3 : (kSize < 0.3 ? 0.3 : kSize);
+            sizeLabel.Content = ((int)(kSize * 100)).ToString() + "%";
+            ScaleTransform sctr = new(kSize,kSize);
+            scaleCanvas.RenderTransform = sctr;
+        }
+
         public void CreateSample(int width, int height)
         {
-            Rectangle rect = new Rectangle() { Width = width, Height = height, Stroke = new SolidColorBrush(Colors.Aquamarine), StrokeThickness = 2};
-            Canvas.SetTop(rect, handleCanvas.ActualHeight / 2 + height / 2 );
-            Canvas.SetLeft(rect, handleCanvas.ActualWidth / 2 + width / 2);
-            handleCanvas.Children.Add(rect);
+            Rectangle rect = new() { Width = width, Height = height, Stroke = new SolidColorBrush(Colors.Aquamarine), StrokeThickness = 2};
+            Canvas.SetTop(rect, scaleCanvas.ActualHeight / 2 + height / 2 );
+            Canvas.SetLeft(rect, scaleCanvas.ActualWidth / 2 + width / 2);
+            CanvasAdd(rect);
         }
-    } 
+
+        private Point LastMouseWheelPos;
+        private bool isMoved = false;
+
+        private void handleCanvas_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+
+            if (e.MiddleButton == MouseButtonState.Pressed)
+            {
+                isMoved = true;
+                LastMouseWheelPos = e.GetPosition(scaleCanvas);
+            }
+        }
+
+        private void handleCanvas_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (e.MiddleButton == MouseButtonState.Released && isMoved) isMoved = false;
+        }
+
+        public void stepButton_Click(object sender, RoutedEventArgs e)
+        {
+            StepWindow stepWindow = new();
+            if (stepWindow.ShowDialog()==true)
+            {
+                step = StepWindow.GetStep;
+                if (step is int) MessageBox.Show("Step has been set"); 
+            }
+        }
+
+        private void CanvasAdd(Shape shape) => scaleCanvas.Children.Add(shape);
+    }
+
 
     public static class TakedShapes
     {
-       
-
-        public static Line line = new Line() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) };
-        public static Ellipse ellipse = new Ellipse() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) };
-        public static Rectangle rectangle = new Rectangle() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) };
+        public static Line line = new() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) };
+        public static Ellipse ellipse = new() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) };
+        public static Rectangle rectangle = new() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) };
 
         public static void InitializeCanvas(Panel handle)
         {
@@ -207,4 +268,5 @@ namespace CumCAM
             handle.Children.Add(rectangle);
         }
     }
+
 }
