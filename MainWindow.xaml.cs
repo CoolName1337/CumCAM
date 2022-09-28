@@ -44,7 +44,7 @@ namespace CumCAM
 
         private Sample()
         {
-           
+
         }
 
         public double Width
@@ -77,9 +77,9 @@ namespace CumCAM
         private static void InitLines()
         {
             for (int i = 0; i < 100; i++)
-                vertLines.Add(new Line() { Stroke = new SolidColorBrush(Color.FromArgb(40,0,0,0)), StrokeThickness=1 });
+                vertLines.Add(new Line() { Stroke = new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)), StrokeThickness = 1 });
             for (int i = 0; i < 100; i++)
-                horizLines.Add(new Line() { Stroke = new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)), StrokeThickness=1 });
+                horizLines.Add(new Line() { Stroke = new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)), StrokeThickness = 1 });
         }
 
 
@@ -90,16 +90,16 @@ namespace CumCAM
             foreach (var line in vertLines)
             {
                 line.X2 = line.X1 = StartPosition.X + Step * i;
-                line.Y1 = -StartPosition.Y*2;
-                line.Y2 = StartPosition.Y*2;
+                line.Y1 = -StartPosition.Y * 2;
+                line.Y2 = StartPosition.Y * 2;
                 i++;
             }
             i = 0;
             foreach (var line in horizLines)
             {
                 line.Y2 = line.Y1 = StartPosition.Y + Step * i;
-                line.X1 = -StartPosition.X*2;
-                line.X2 = StartPosition.X*2;
+                line.X1 = -StartPosition.X * 2;
+                line.X2 = StartPosition.X * 2;
                 i++;
             }
         }
@@ -130,7 +130,7 @@ namespace CumCAM
 
         Vector ZeroPos = new Vector(200, 350);
         Sample CurrentSample;
-        
+
         public Point? p1, p2;
         public int radius = 100;
         private double kSize = 1;
@@ -180,12 +180,12 @@ namespace CumCAM
             if (isMoved)
             {
                 Vector delta = (e.GetPosition(scaleCanvas) - LastMouseWheelPos) * kSize;
-                var realSamplePosX = Canvas.GetLeft(scaleCanvas) * kSize + CurrentSample.Position.X;
-                var realSamplePosY = Canvas.GetTop(scaleCanvas) * kSize + CurrentSample.Position.Y;
-                if (realSamplePosX < 0) delta.X = delta.X < 0 ? 0 : delta.X; 
-                if (realSamplePosY < 0) delta.Y = delta.Y < 0 ? 0 : delta.Y; 
-                if (realSamplePosX > handleCanvas.ActualWidth - CurrentSample.Width) delta.X = delta.X > 0 ? 0 : delta.X ;
-                if (realSamplePosY > handleCanvas.ActualHeight - CurrentSample.Height) delta.Y = delta.Y > 0 ? 0 : delta.Y;
+                var realSamplePosX = Canvas.GetLeft(scaleCanvas) + CurrentSample.Position.X * kSize;
+                var realSamplePosY = Canvas.GetTop(scaleCanvas) + CurrentSample.Position.Y * kSize;
+                if (realSamplePosX < -CurrentSample.Width * kSize) delta.X = delta.X < 0 ? 0 : delta.X;
+                if (realSamplePosY < -CurrentSample.Height * kSize) delta.Y = delta.Y < 0 ? 0 : delta.Y;
+                if (realSamplePosX > handleCanvas.ActualWidth) delta.X = delta.X > 0 ? 0 : delta.X;
+                if (realSamplePosY > handleCanvas.ActualHeight) delta.Y = delta.Y > 0 ? 0 : delta.Y;
                 var deltaPosY = Canvas.GetTop(scaleCanvas) + delta.Y;                                                                                    //epta...
                 var deltaPosX = Canvas.GetLeft(scaleCanvas) + delta.X;                                                                                   // ... --- ... --- ... --- ... ---
                 Canvas.SetTop(scaleCanvas, deltaPosY);
