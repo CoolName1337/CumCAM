@@ -5,7 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CumCAM"
         mc:Ignorable="d"
-        Title="MainWindow" Height="500" Width="900">
+        Title="MainWindow" Height="600" Width="900">
+   
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="50"></ColumnDefinition>
@@ -13,7 +14,7 @@
             <ColumnDefinition Width="114*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="5*"></RowDefinition>
+            <RowDefinition Height="12*"></RowDefinition>
             <RowDefinition></RowDefinition>
         </Grid.RowDefinitions>
         
@@ -22,11 +23,11 @@
                 MouseLeftButtonDown="handleCanvas_MouseLeftButtonDown" MouseWheel="handleCanvas_MouseWheel" MouseDown="handleCanvas_MouseDown"
                 MouseUp="handleCanvas_MouseUp">
             <Canvas x:Name="scaleCanvas">
-                
-            </Canvas>
-            <Canvas x:Name="aimCanvas">
-                <Line x:Name="_vertLine" StrokeThickness="2" Stroke="DarkGray"></Line>
-                <Line x:Name="_horizLine" StrokeThickness="2" Stroke="DarkGray"></Line>
+
+                <Canvas x:Name="aimCanvas">
+                    <Line x:Name="_vertLine" StrokeThickness="2" Stroke="DarkGray"></Line>
+                    <Line x:Name="_horizLine" StrokeThickness="2" Stroke="DarkGray"></Line>
+                </Canvas>
             </Canvas>
         </Canvas>
 
@@ -39,7 +40,6 @@
         <TextBox x:Name="resTextBox" Grid.Column="2" Grid.Row="0" Margin="5,30,5,5"></TextBox>
         <Label Grid.Column="2" Grid.Row="0" HorizontalAlignment="Center" VerticalAlignment="Top" Content="G-code"></Label>
         <Button x:Name="createButton" Grid.Column="2" Grid.Row="1" Margin="10,10,10,10" Content="Create G-code"></Button>
-        <Button x:Name="stepButton" Grid.Column="1" Grid.Row="1" Margin="592,10,13,10" Content="Set step" Click="stepButton_Click" ></Button>
 
         <StackPanel x:Name="figuresPanel" Orientation="Vertical" MouseDown="figuresPanel_MouseDown">
             <Grid >
@@ -57,7 +57,13 @@
         </StackPanel>
 
         <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="2">
-            
+            <CheckBox x:Name="stepButton" Content="Use step" Click="stepButton_Click" Margin="10"></CheckBox>
+            <TextBox x:Name="stepTextBox" PreviewTextInput="stepTextBox_TextInput" PreviewKeyDown="stepTextBox_KeyDown"
+                     Text="1" TextAlignment="Right" VerticalAlignment="Top" Margin="8" Width="40" IsEnabled="False"></TextBox>
+            <Line Stroke="LightGray" StrokeThickness="1" Y2="20"></Line>
+            <CheckBox x:Name="gridButton" Margin="10" Content="Grid" Click="gridButton_Click"></CheckBox>
+            <Line Stroke="LightGray" StrokeThickness="1" Y2="20"></Line>
+            <CheckBox x:Name="aimButton" Margin="10" Content="Aim" Click="aimButton_Click"></CheckBox>
         </StackPanel>
         <Label x:Name="posLabel" Grid.Column="1" Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Top" Content="0;0"></Label>
         <Label x:Name="sizeLabel" Grid.Column="0" Grid.Row="0" HorizontalAlignment="Left" VerticalAlignment="Bottom" Content="100%"></Label>
