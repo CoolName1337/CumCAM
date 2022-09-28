@@ -23,6 +23,7 @@ namespace CumCAM
     {
         private Rectangle rect = new Rectangle() { Stroke = new SolidColorBrush(Colors.Gray), StrokeThickness = 4 };
         private Vector pos = new Vector(0, 0);
+        static Sample sample;
         public Vector Position
         {
             get => pos;
@@ -33,6 +34,19 @@ namespace CumCAM
                 Canvas.SetLeft(rect, pos.X);
             }
         }
+
+        public static Sample Instance()
+        {
+            if (sample == null)
+                sample = new Sample();
+            return sample;
+        }
+
+        private Sample()
+        {
+           
+        }
+
         public double Width
         {
             get => rect.Width;
@@ -68,12 +82,14 @@ namespace CumCAM
                 horizLines.Add(new Line() { Stroke = new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)), StrokeThickness=1 });
         }
 
+
+
         public static void SetPos(double kSize)
         {
             int i = 0;
             foreach (var line in vertLines)
             {
-                line.X2 = line.X1 = -StartPosition.X + Step * i;
+                line.X2 = line.X1 = StartPosition.X + Step * i;
                 line.Y1 = -StartPosition.Y*2;
                 line.Y2 = StartPosition.Y*2;
                 i++;
@@ -81,7 +97,7 @@ namespace CumCAM
             i = 0;
             foreach (var line in horizLines)
             {
-                line.Y2 = line.Y1 = -StartPosition.Y + Step * i;
+                line.Y2 = line.Y1 = StartPosition.Y + Step * i;
                 line.X1 = -StartPosition.X*2;
                 line.X2 = StartPosition.X*2;
                 i++;
@@ -114,7 +130,7 @@ namespace CumCAM
 
         Vector ZeroPos = new Vector(200, 350);
         Sample CurrentSample;
-
+        
         public Point? p1, p2;
         public int radius = 100;
         private double kSize = 1;
@@ -128,7 +144,7 @@ namespace CumCAM
 
             InitializeAll();
             TakedShapes.InitializeCanvas(scaleCanvas);
-            CreateSample(1000, 1000);
+            CreateSample(100, 100);
         }
 
         private void InitializeAll()
@@ -163,11 +179,17 @@ namespace CumCAM
             //new Point(p.X + Canvas.GetLeft(scaleCanvas) * kSize, p.Y + Canvas.GetTop(scaleCanvas) * kSize)
             if (isMoved)
             {
-                Vector delta = e.GetPosition(scaleCanvas) - LastMouseWheelPos;
-                var deltaPosX = Canvas.GetTop(scaleCanvas) + delta.Y * kSize;
-                var deltaPosY = Canvas.GetLeft(scaleCanvas) + delta.X * kSize;
-                Canvas.SetTop(scaleCanvas, deltaPosX);
-                Canvas.SetLeft(scaleCanvas, deltaPosY);
+                Vector delta = (e.GetPosition(scaleCanvas) - LastMouseWheelPos) * kSize;
+                var realSamplePosX = Canvas.GetLeft(scaleCanvas) * kSize + CurrentSample.Position.X;
+                var realSamplePosY = Canvas.GetTop(scaleCanvas) * kSize + CurrentSample.Position.Y;
+                if (realSamplePosX < 0) delta.X = delta.X < 0 ? 0 : delta.X; 
+                if (realSamplePosY < 0) delta.Y = delta.Y < 0 ? 0 : delta.Y; 
+                if (realSamplePosX > handleCanvas.ActualWidth - CurrentSample.Width) delta.X = delta.X > 0 ? 0 : delta.X ;
+                if (realSamplePosY > handleCanvas.ActualHeight - CurrentSample.Height) delta.Y = delta.Y > 0 ? 0 : delta.Y;
+                var deltaPosY = Canvas.GetTop(scaleCanvas) + delta.Y;                                                                                    //epta...
+                var deltaPosX = Canvas.GetLeft(scaleCanvas) + delta.X;                                                                                   // ... --- ... --- ... --- ... ---
+                Canvas.SetTop(scaleCanvas, deltaPosY);
+                Canvas.SetLeft(scaleCanvas, deltaPosX);
             }
 
             if (p1 == null && (takedShape == TakedShapes.line || takedShape == TakedShapes.rectangle)) return;
@@ -330,7 +352,9 @@ namespace CumCAM
 
         public void CreateSample(int width, int height)
         {
-            CurrentSample = new Sample() { Height = height, Width = width };
+            CurrentSample = Sample.Instance();
+            CurrentSample.Height = height;
+            CurrentSample.Width = width;
             CurrentSample.Position = ZeroPos - new Vector(0, height);
             CurrentSample.Initialize(scaleCanvas);
         }
@@ -396,7 +420,6 @@ namespace CumCAM
         {
             scaleCanvas.Children.Remove(shapes.Last());
             shapes.Remove(shapes.Last());
-
         }
 
         private void aimButton_Click(object sender, RoutedEventArgs e)
