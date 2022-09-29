@@ -63,7 +63,7 @@
             <Line Stroke="LightGray" StrokeThickness="1" Y2="20"></Line>
             <CheckBox x:Name="gridButton" Margin="10" Content="Grid" Click="gridButton_Click"></CheckBox>
             <Line Stroke="LightGray" StrokeThickness="1" Y2="20"></Line>
-            <CheckBox x:Name="aimButton" Margin="10" Content="Aim" Click="aimButton_Click"></CheckBox>
+            <CheckBox x:Name="aimButton" Margin="10" Content="Aim"></CheckBox>
         </StackPanel>
         <Label x:Name="posLabel" Grid.Column="1" Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Top" Content="0;0"></Label>
         <Label x:Name="sizeLabel" Grid.Column="0" Grid.Row="0" HorizontalAlignment="Left" VerticalAlignment="Bottom" Content="100%"></Label>

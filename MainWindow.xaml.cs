@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data.Common;
+using System.IO.Packaging;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Text;
@@ -68,38 +69,56 @@ namespace CumCAM
     {
         static public Panel Root;
         static Canvas handle = new();
+        static public Sample sample;
 
         static List<Line> vertLines = new();
         static List<Line> horizLines = new();
         static public Vector StartPosition;
         static public int Step = 20;
 
+        static public Visibility Visibility
+        {
+            get => handle.Visibility;
+            set => handle.Visibility = value;
+        }
+
         private static void InitLines()
         {
-            for (int i = 0; i < 100; i++)
-                vertLines.Add(new Line() { Stroke = new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)), StrokeThickness = 1 });
-            for (int i = 0; i < 100; i++)
-                horizLines.Add(new Line() { Stroke = new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)), StrokeThickness = 1 });
+            for (int i = 0; i < sample.Width; i++)
+                vertLines.Add(new Line() { Stroke = new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)), StrokeThickness = 0.25 });
+            for (int i = 0; i < sample.Height; i++)
+                horizLines.Add(new Line() { Stroke = new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)), StrokeThickness = 0.25 });
         }
 
 
+        public static void SetVisibleLine(int step) //hide some lines except step line
+        {
+            for (int i = 0; i < vertLines.Count; i++)
+            {
+                vertLines[i].Visibility = i % step == 0 ? Visibility.Visible : Visibility.Hidden;
+            }
+            for (int i = 0; i < horizLines.Count; i++)
+            {
+                horizLines[i].Visibility = i % step == 0 ? Visibility.Visible : Visibility.Hidden;
+            }
+        }
 
-        public static void SetPos(double kSize)
+        public static void SetPos()
         {
             int i = 0;
             foreach (var line in vertLines)
             {
-                line.X2 = line.X1 = StartPosition.X + Step * i;
-                line.Y1 = -StartPosition.Y * 2;
-                line.Y2 = StartPosition.Y * 2;
+                line.X2 = line.X1 = StartPosition.X + i;
+                line.Y1 = StartPosition.Y;
+                line.Y2 = StartPosition.Y - sample.Height;
                 i++;
             }
             i = 0;
             foreach (var line in horizLines)
             {
-                line.Y2 = line.Y1 = StartPosition.Y + Step * i;
-                line.X1 = -StartPosition.X * 2;
-                line.X2 = StartPosition.X * 2;
+                line.Y2 = line.Y1 = StartPosition.Y - i;
+                line.X1 = StartPosition.X;
+                line.X2 = StartPosition.X + sample.Width;
                 i++;
             }
         }
@@ -119,7 +138,7 @@ namespace CumCAM
             InitHandle();
             Root = canv;
             Root.Children.Add(handle);
-            SetPos(1);
+            SetPos();
         }
     }
 
@@ -134,7 +153,18 @@ namespace CumCAM
         public Point? p1, p2;
         public int radius = 100;
         private double kSize = 1;
-        int step = 1;
+        int step = 20;
+
+        public int Step
+        {
+            get => step;
+            set
+            {
+                step = value;
+                VisualGrid.SetVisibleLine(step);
+            }
+        }
+
         delegate void DrawDelegate(MouseButtonEventArgs e);
         DrawDelegate Draw;
 
@@ -142,21 +172,29 @@ namespace CumCAM
         {
             InitializeComponent();
 
+            CreateSample(1000, 1000);
+
             InitializeAll();
-            TakedShapes.InitializeCanvas(scaleCanvas);
-            CreateSample(100, 100);
+
         }
 
         private void InitializeAll()
         {
+            VisualGrid.StartPosition = ZeroPos;
+            VisualGrid.sample = CurrentSample;
+            VisualGrid.Initialize(scaleCanvas);
+            VisualGrid.Visibility = Visibility.Hidden;
+
+            TakedShapes.InitializeCanvas(scaleCanvas);
+
             Canvas.SetTop(scaleCanvas, 0);
             Canvas.SetLeft(scaleCanvas, 0);
         }
 
         private Point ChangeValues(Point p)                 // Для получения кратных координат, возвращает координаты кратные int step (по умолчанию step = 1)
         {
-            var changedValueX = ZeroPos.X % step + step * Math.Round(p.X / step);
-            var changedValueY = ZeroPos.Y % step + step * Math.Round(p.Y / step);
+            var changedValueX = ZeroPos.X % step + (int)p.X / step * step + step * Math.Round(( p.X % step) / step);
+            var changedValueY = ZeroPos.Y % step + (int)p.Y / step * step + step * Math.Round(( p.Y % step) / step);
             return new Point(changedValueX, changedValueY);
         }
 
@@ -169,7 +207,7 @@ namespace CumCAM
 
         private void handleCanvas_MouseMove(object sender, MouseEventArgs e)
         {
-            if (aimCanvas.Visibility == Visibility.Hidden) aimCanvas.Visibility = Visibility.Visible;
+            if (aimCanvas.Visibility == Visibility.Hidden && aimButton.IsChecked.Value) aimCanvas.Visibility = Visibility.Visible;
             Point p = ChangeValues(e.GetPosition(scaleCanvas));               // округление координат точки сразу после получения этих координат
             posLabel.Content = $"{-ZeroPos.X + p.X}; {ZeroPos.Y - p.Y}";
 
@@ -385,12 +423,12 @@ namespace CumCAM
         {
             if (stepButton.IsChecked.Value)
             {
-                step = int.Parse(stepTextBox.Text);
+                Step = int.Parse(stepTextBox.Text);
                 stepTextBox.IsEnabled = true;
             }
             else
             {
-                step = 1;
+                Step = 1;
                 stepTextBox.IsEnabled = false;
             }
         }
@@ -398,18 +436,16 @@ namespace CumCAM
         private void stepTextBox_TextInput(object sender, TextCompositionEventArgs e)
         {
             if (!char.IsDigit(e.Text[0]))
-            {
                 e.Handled = true;
-            }
-            step = int.Parse(stepTextBox.Text);
+            Step = int.Parse(stepTextBox.Text);
         }
 
         private void stepTextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Space)
-            {
-                e.Handled = true;
-            }
+                e.Handled = true; 
+            if (stepTextBox.Text == string.Empty || stepTextBox.Text == "0")
+                stepTextBox.Text = "1";
         }
 
         private void CommandCtrlZ(object sender, ExecutedRoutedEventArgs e)
@@ -422,17 +458,16 @@ namespace CumCAM
             shapes.Remove(shapes.Last());
         }
 
-        private void aimButton_Click(object sender, RoutedEventArgs e)
-        {
-            aimCanvas.Visibility = aimButton.IsChecked.Value ? Visibility.Visible : Visibility.Hidden;
-        }
-
         private void gridButton_Click(object sender, RoutedEventArgs e)
         {
             if (gridButton.IsChecked.Value)
             {
-                VisualGrid.StartPosition = ZeroPos;
-                VisualGrid.Initialize(scaleCanvas);
+                VisualGrid.Visibility = Visibility.Visible;
+                VisualGrid.SetVisibleLine(step);
+            }
+            else
+            {
+                VisualGrid.Visibility = Visibility.Hidden;
             }
         }
 
