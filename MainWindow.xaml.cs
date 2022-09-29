@@ -144,16 +144,16 @@ namespace CumCAM
 
     public partial class MainWindow : Window
     {
-        List<Shape> shapes = new List<Shape>();
+        static List<Shape> shapes = new List<Shape>();
         public Shape takedShape;
 
         Vector ZeroPos = new Vector(200, 350);
         Sample CurrentSample;
 
         public Point? p1, p2;
-        public int radius = 100;
+        public int radius = 10;
         private double kSize = 1;
-        int step = 20;
+        int step = 1;
 
         public int Step
         {
@@ -171,8 +171,11 @@ namespace CumCAM
         public MainWindow()
         {
             InitializeComponent();
-
-            CreateSample(1000, 1000);
+            CommandBinding commandBinding = new CommandBinding();
+            commandBinding.Command = ApplicationCommands.Undo;
+            commandBinding.Executed += CommandCtrlZ;
+            this.CommandBindings.Add(commandBinding);
+            CreateSample(100, 100);
 
             InitializeAll();
 
@@ -279,6 +282,7 @@ namespace CumCAM
             {
                 ResetRectColor();
                 UidDetect(shape.Uid).Fill = new SolidColorBrush(Colors.DarkGray);
+                radiusTB.Visibility = Visibility.Hidden;
                 switch (Convert.ToInt32(shape.Uid))
                 {
                     case 0:
@@ -287,6 +291,7 @@ namespace CumCAM
                         break;
                     case 1:
                         takedShape = TakedShapes.ellipse;
+                        radiusTB.Visibility = Visibility.Visible;
                         Draw = DrawEllipse;
                         break;
                     case 2:
@@ -339,6 +344,7 @@ namespace CumCAM
                 p1 = null;
                 p2 = null;
             }
+
         }
 
         public void DrawEllipse(MouseButtonEventArgs e)
@@ -471,10 +477,71 @@ namespace CumCAM
             }
         }
 
+        private void radiusTB_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Space)
+                e.Handled = true;
+            if (radiusTB.Text == string.Empty || radiusTB.Text == "0")
+                radiusTB.Text = "1";
+        }
+
+        private void radiusTB_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            if (!char.IsDigit(e.Text[0]))
+                e.Handled = true;
+            radius = int.Parse(radiusTB.Text);
+        }
+
         private void CanvasAdd(Shape shape) => scaleCanvas.Children.Add(shape);
+
+        private void createButton_Click(object sender, RoutedEventArgs e)
+        {
+            resTextBox.Text = CreateGCode();
+        }
+
+        public string CreateGCode()
+        {
+            string res = string.Empty;
+            foreach (Shape shape in shapes)
+            {
+                switch (shape)
+                {
+                    case Line line:
+                        res+=FromLine(line);
+                        break;
+                    case Ellipse ellipse:
+                        res+=FromEllipse(ellipse);
+                        break;
+                    case Rectangle rectangle:
+                        res+=FromRectangle(rectangle);
+                        break;
+                }
+            }
+            return res + "M02\n";
+        }
+
+        private string FromLine(Line line)
+        {
+            return $"G00 X{line.X1-ZeroPos.X} Y{-line.Y1+ZeroPos.Y}\nM03 Z-5\nG01 X{line.X2 - ZeroPos.X} Y{-line.Y2 + ZeroPos.Y}\nM05 Z0\n";
+        }
+
+        private string FromEllipse(Ellipse ellipse)
+        {
+            double PosX = Canvas.GetLeft(ellipse) - ZeroPos.X+ellipse.Width/2;
+            double PosY = -Canvas.GetTop(ellipse) + ZeroPos.Y-ellipse.Height/2;
+            return $"G03 X{PosX} Y{PosY} R{ellipse.Width/2}\n";
+        }
+
+        private string FromRectangle(Rectangle rectangle)
+        {
+            double PosX = Canvas.GetLeft(rectangle) - ZeroPos.X;
+            double PosY = - Canvas.GetTop(rectangle) + ZeroPos.Y;
+            return $"G00 X{PosX} Y{PosY}\nM03 Z-5\nG01 X{PosX + rectangle.Width}\nG01 Y{PosY - rectangle.Height}\nG01 X{PosX}\nG01 Y{PosY}\nM05 Z0\n";
+        }
+
     }
 
-
+   
     public static class TakedShapes
     {
         public static Line line = new() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) };
@@ -494,5 +561,4 @@ namespace CumCAM
             rectangle.Height = rectangle.Width = 0;
         }
     }
-
 }
