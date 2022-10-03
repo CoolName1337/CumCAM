@@ -1,10 +1,12 @@
-﻿using System;
+﻿using Microsoft.Win32.SafeHandles;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data.Common;
 using System.IO.Packaging;
 using System.Linq;
 using System.Reflection.Metadata;
+using System.Security.Cryptography.Pkcs;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -134,6 +136,7 @@ namespace CumCAM
 
         public static void Initialize(Panel canv)
         {
+            
             InitLines();
             InitHandle();
             Root = canv;
@@ -144,18 +147,18 @@ namespace CumCAM
 
     public partial class MainWindow : Window
     {
-        static List<Shape> shapes = new List<Shape>();
-        public Shape takedShape;
+        public static List<GShape> shapes = new List<GShape>();
+        public GShape takedShape;
 
-        Vector ZeroPos = new Vector(200, 350);
+        public static Vector ZeroPos = new Vector(200, 350);
         Sample CurrentSample;
 
         public Point? p1, p2;
-        public int radius = 10;
+        public static int radius = 10;
         private double kSize = 1;
-        int step = 1;
+        static int step = 1;
 
-        public int Step
+        public static int Step
         {
             get => step;
             set
@@ -165,20 +168,17 @@ namespace CumCAM
             }
         }
 
-        delegate void DrawDelegate(MouseButtonEventArgs e);
-        DrawDelegate Draw;
-
         public MainWindow()
         {
             InitializeComponent();
+            GShape.scaleCanvas = scaleCanvas;
             CommandBinding commandBinding = new CommandBinding();
             commandBinding.Command = ApplicationCommands.Undo;
             commandBinding.Executed += CommandCtrlZ;
             this.CommandBindings.Add(commandBinding);
-            CreateSample(100, 100);
-
+            (int x, int y) = WorkpieceWindow.GetWP;
+            CreateSample(x,y);
             InitializeAll();
-
         }
 
         private void InitializeAll()
@@ -187,14 +187,11 @@ namespace CumCAM
             VisualGrid.sample = CurrentSample;
             VisualGrid.Initialize(scaleCanvas);
             VisualGrid.Visibility = Visibility.Hidden;
-
-            TakedShapes.InitializeCanvas(scaleCanvas);
-
             Canvas.SetTop(scaleCanvas, 0);
             Canvas.SetLeft(scaleCanvas, 0);
         }
 
-        private Point ChangeValues(Point p)                 // Для получения кратных координат, возвращает координаты кратные int step (по умолчанию step = 1)
+        public static Point ChangeValues(Point p)                 // Для получения кратных координат, возвращает координаты кратные int step (по умолчанию step = 1)
         {
             var changedValueX = ZeroPos.X % step + (int)p.X / step * step + step * Math.Round(( p.X % step) / step);
             var changedValueY = ZeroPos.Y % step + (int)p.Y / step * step + step * Math.Round(( p.Y % step) / step);
@@ -213,8 +210,6 @@ namespace CumCAM
             if (aimCanvas.Visibility == Visibility.Hidden && aimButton.IsChecked.Value) aimCanvas.Visibility = Visibility.Visible;
             Point p = ChangeValues(e.GetPosition(scaleCanvas));               // округление координат точки сразу после получения этих координат
             posLabel.Content = $"{-ZeroPos.X + p.X}; {ZeroPos.Y - p.Y}";
-
-
             var pForAim = ChangeValues(e.GetPosition(scaleCanvas));
             SetAim(pForAim);
             //new Point(p.X + Canvas.GetLeft(scaleCanvas) * kSize, p.Y + Canvas.GetTop(scaleCanvas) * kSize)
@@ -237,19 +232,20 @@ namespace CumCAM
 
             switch (takedShape)
             {
-                case Line line:
-                    line.X1 = p1.Value.X;
-                    line.Y1 = p1.Value.Y;
-                    line.X2 = p.X;
-                    line.Y2 = p.Y;
+                case GLine line:
+                    Line _line = line.shape as Line;
+                    _line.X1 = p1.Value.X;
+                    _line.Y1 = p1.Value.Y;
+                    _line.X2 = p.X;
+                    _line.Y2 = p.Y;
                     break;
-                case Ellipse ellipse:
-                    ellipse.Width = ellipse.Height = radius * 2;
-                    Canvas.SetTop(ellipse, p.Y - radius);
-                    Canvas.SetLeft(ellipse, p.X - radius);
+                case GEllipse ellipse:
+                    ellipse.shape.Width = ellipse.shape.Height = radius * 2;
+                    Canvas.SetTop(ellipse.shape, p.Y - radius);
+                    Canvas.SetLeft(ellipse.shape, p.X - radius);
                     break;
-                case Rectangle rectangle:
-                    SetRectangle(rectangle, p1.Value, p);
+                case GRectangle rectangle:
+                    SetRectangle(rectangle.shape as Rectangle, p1.Value, p);
                     break;
             }
         }
@@ -287,22 +283,20 @@ namespace CumCAM
                 {
                     case 0:
                         takedShape = TakedShapes.line;
-                        Draw = DrawLine;
+                        
                         break;
                     case 1:
                         takedShape = TakedShapes.ellipse;
                         radiusTB.Visibility = Visibility.Visible;
-                        Draw = DrawEllipse;
                         break;
                     case 2:
                         takedShape = TakedShapes.rectangle;
-                        Draw = DrawRectangle;
                         break;
                 }
                 CancelDraw();
             }
         }
-        private void HideAllBesides(Shape sh)
+        private void HideAllBesides(GShape sh)
         {
             TakedShapes.ellipse.Visibility = Visibility.Hidden;
             TakedShapes.rectangle.Visibility = Visibility.Hidden;
@@ -329,51 +323,10 @@ namespace CumCAM
 
         private void handleCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            Draw?.Invoke(e);
+            takedShape?.Draw(e);
         }
 
-        public void DrawLine(MouseButtonEventArgs e)
-        {
-            if (p1 != null) p2 = ChangeValues(e.GetPosition(scaleCanvas));
-            if (p2 == null) p1 = ChangeValues(e.GetPosition(scaleCanvas));
-            if (p1 != null && p2 != null)
-            {
-                Line line = new() { X1 = p1.Value.X, Y1 = p1.Value.Y, X2 = p2.Value.X, Y2 = p2.Value.Y, StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black) };
-                shapes.Add(line);
-                CanvasAdd(line);
-                p1 = null;
-                p2 = null;
-            }
-
-        }
-
-        public void DrawEllipse(MouseButtonEventArgs e)
-        {
-
-            Ellipse ellipse = new() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black), Width = radius * 2, Height = radius * 2 };
-            shapes.Add(ellipse);
-            Canvas.SetTop(ellipse, ChangeValues(e.GetPosition(scaleCanvas)).Y - radius);
-            Canvas.SetLeft(ellipse, ChangeValues(e.GetPosition(scaleCanvas)).X - radius);
-            CanvasAdd(ellipse);
-        }
-
-        public void DrawRectangle(MouseButtonEventArgs e)
-        {
-
-            if (p1 != null) p2 = ChangeValues(e.GetPosition(scaleCanvas));
-            if (p2 == null) p1 = ChangeValues(e.GetPosition(scaleCanvas));
-            if (p1 != null && p2 != null)
-            {
-                Rectangle rectangle = new() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black) };
-                shapes.Add(rectangle);
-                SetRectangle(rectangle, p1.Value, p2.Value);
-                CanvasAdd(rectangle);
-                p1 = null;
-                p2 = null;
-            }
-        }
-
-        private void SetRectangle(Rectangle rect, Point _p1, Point _p2)
+        public static void SetRectangle(Rectangle rect, Point _p1, Point _p2)
         {
             double height = _p2.Y - _p1.Y;
             double width = _p2.X - _p1.X;
@@ -396,6 +349,7 @@ namespace CumCAM
 
         public void CreateSample(int width, int height)
         {
+
             CurrentSample = Sample.Instance();
             CurrentSample.Height = height;
             CurrentSample.Width = width;
@@ -460,8 +414,11 @@ namespace CumCAM
         }
         public void RemoveLast()
         {
-            scaleCanvas.Children.Remove(shapes.Last());
-            shapes.Remove(shapes.Last());
+            if (shapes.Count > 0)
+            {
+                scaleCanvas.Children.Remove(shapes.Last().shape);
+                shapes.Remove(shapes.Last());
+            }
         }
 
         private void gridButton_Click(object sender, RoutedEventArgs e)
@@ -502,63 +459,115 @@ namespace CumCAM
         public string CreateGCode()
         {
             string res = string.Empty;
-            foreach (Shape shape in shapes)
+            foreach (GShape shape in shapes)
             {
-                switch (shape)
-                {
-                    case Line line:
-                        res+=FromLine(line);
-                        break;
-                    case Ellipse ellipse:
-                        res+=FromEllipse(ellipse);
-                        break;
-                    case Rectangle rectangle:
-                        res+=FromRectangle(rectangle);
-                        break;
-                }
+                res += shape.GetGCode();
             }
             return res + "M02\n";
         }
 
-        private string FromLine(Line line)
-        {
-            return $"G00 X{line.X1-ZeroPos.X} Y{-line.Y1+ZeroPos.Y}\nM03 Z-5\nG01 X{line.X2 - ZeroPos.X} Y{-line.Y2 + ZeroPos.Y}\nM05 Z0\n";
-        }
-
-        private string FromEllipse(Ellipse ellipse)
-        {
-            double PosX = Canvas.GetLeft(ellipse) - ZeroPos.X+ellipse.Width/2;
-            double PosY = -Canvas.GetTop(ellipse) + ZeroPos.Y-ellipse.Height/2;
-            return $"G03 X{PosX} Y{PosY} R{ellipse.Width/2}\n";
-        }
-
-        private string FromRectangle(Rectangle rectangle)
-        {
-            double PosX = Canvas.GetLeft(rectangle) - ZeroPos.X;
-            double PosY = - Canvas.GetTop(rectangle) + ZeroPos.Y;
-            return $"G00 X{PosX} Y{PosY}\nM03 Z-5\nG01 X{PosX + rectangle.Width}\nG01 Y{PosY - rectangle.Height}\nG01 X{PosX}\nG01 Y{PosY}\nM05 Z0\n";
-        }
-
     }
 
-   
+    public class GLine : GShape
+    {
+        public GLine(Shape _shape) : base(_shape) { }
+
+        public override void Draw(MouseButtonEventArgs e)
+        {
+            if (p1 != null) p2 = MainWindow.ChangeValues(e.GetPosition(scaleCanvas));
+            if (p2 == null) p1 = MainWindow.ChangeValues(e.GetPosition(scaleCanvas));
+            if (p1 != null && p2 != null)
+            {
+                new GLine (new Line () { X1 = p1.Value.X, Y1 = p1.Value.Y, X2 = p2.Value.X, Y2 = p2.Value.Y, StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black) });
+                p1 = p2 = null;
+            }
+        }
+
+        public override string GetGCode()
+        {
+            Line line = shape as Line;
+            return $"G00 X{line.X1 - MainWindow.ZeroPos.X} Y{-line.Y1 + MainWindow.ZeroPos.Y}\nM03 Z-5\nG01 X{line.X2 - MainWindow.ZeroPos.X} Y{-line.Y2 + MainWindow.ZeroPos.Y}\nM05 Z0\n";
+        }
+    }
+
+    public class GEllipse : GShape
+    {
+        public GEllipse (Shape _shape) : base (_shape) { }
+
+        public override void Draw(MouseButtonEventArgs e)
+        {
+            new GEllipse(new Ellipse () { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black), Width = MainWindow.radius * 2, Height = MainWindow.radius * 2 });
+            
+            Canvas.SetTop(shape, MainWindow.ChangeValues(e.GetPosition(scaleCanvas)).Y - MainWindow.radius);
+            Canvas.SetLeft(shape, MainWindow.ChangeValues(e.GetPosition(scaleCanvas)).X - MainWindow.radius);
+            
+        }
+
+        public override string GetGCode()
+        {
+            double PosX = Canvas.GetLeft(shape) - MainWindow.ZeroPos.X + shape.Width / 2;
+            double PosY = -Canvas.GetTop(shape) + MainWindow.ZeroPos.Y - shape.Height / 2;
+            return $"G03 X{PosX} Y{PosY} R{shape.Width / 2}\n";
+        }
+    }
+
+    public class GRectangle : GShape
+    {
+        
+        public GRectangle(Shape _shape) : base(_shape) { }
+
+        public override void Draw(MouseButtonEventArgs e)
+        {
+            if (p1 != null) p2 = MainWindow.ChangeValues(e.GetPosition(scaleCanvas));
+            if (p2 == null) p1 = MainWindow.ChangeValues(e.GetPosition(scaleCanvas));
+            if (p1 != null && p2 != null)
+            {
+                new GRectangle(new Rectangle () { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black) });
+                MainWindow.SetRectangle(shape as Rectangle, p1.Value, p2.Value);
+                p1 = null;
+                p2 = null;
+            }
+        }
+
+        public override string GetGCode()
+        {
+            double PosX = Canvas.GetLeft(shape) - MainWindow.ZeroPos.X;
+            double PosY = -Canvas.GetTop(shape) + MainWindow.ZeroPos.Y;
+            return $"G00 X{PosX} Y{PosY}\nM03 Z-5\nG01 X{PosX + shape.Width}\nG01 Y{PosY - shape.Height}\nG01 X{PosX}\nG01 Y{PosY}\nM05 Z0\n";
+        }
+    }
+
+    public abstract class GShape
+    {
+        public GShape(Shape _shape)
+        {
+            shape = _shape;
+            shape.DataContext = this;
+            MainWindow.shapes.Add(this);
+            scaleCanvas.Children.Add(shape);
+        }
+        public Visibility Visibility { get => shape.Visibility; set => shape.Visibility = value; }
+        protected static Point? p1, p2;
+        public static Canvas scaleCanvas;
+        public Shape shape;
+        public abstract void Draw(MouseButtonEventArgs e);
+        public abstract string GetGCode();
+    }
+
     public static class TakedShapes
     {
-        public static Line line = new() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) };
-        public static Ellipse ellipse = new() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) };
-        public static Rectangle rectangle = new() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) };
+        
+        public static GLine line = new(new Line() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) });
+        public static GEllipse ellipse = new(new Ellipse() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) });
+        public static GRectangle rectangle = new(new Rectangle() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) });
 
-        public static void InitializeCanvas(Panel handle)
-        {
-            handle.Children.Add(line);
-            handle.Children.Add(ellipse);
-            handle.Children.Add(rectangle);
-        }
+        
         public static void ResetAllPos()
         {
-            line.Y2 = line.Y1 = line.X2 = line.X1 = 0;
-            ellipse.Height = ellipse.Width = 0;
-            rectangle.Height = rectangle.Width = 0;
+            Line _line = line.shape as Line; 
+            _line.Y2 = _line.Y1 = _line.X2 = _line.X1 = 0;
+            ellipse.shape.Height = ellipse.shape.Width = 0;
+            rectangle.shape.Height = rectangle.shape.Width = 0;
         }
     }
 }
