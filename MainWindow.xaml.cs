@@ -172,12 +172,16 @@ namespace CumCAM
         {
             InitializeComponent();
             GShape.scaleCanvas = scaleCanvas;
+
             CommandBinding commandBinding = new CommandBinding();
             commandBinding.Command = ApplicationCommands.Undo;
             commandBinding.Executed += CommandCtrlZ;
             this.CommandBindings.Add(commandBinding);
+
             (int x, int y) = WorkpieceWindow.GetWP;
             CreateSample(x,y);
+
+
             InitializeAll();
         }
 
@@ -187,6 +191,7 @@ namespace CumCAM
             VisualGrid.sample = CurrentSample;
             VisualGrid.Initialize(scaleCanvas);
             VisualGrid.Visibility = Visibility.Hidden;
+
             Canvas.SetTop(scaleCanvas, 0);
             Canvas.SetLeft(scaleCanvas, 0);
         }
@@ -456,7 +461,7 @@ namespace CumCAM
             if (p2 == null) p1 = MainWindow.ChangeValues(e.GetPosition(scaleCanvas));
             if (p1 != null && p2 != null)
             {
-                new GLine (new Line () { X1 = p1.Value.X, Y1 = p1.Value.Y, X2 = p2.Value.X, Y2 = p2.Value.Y, StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black) });
+                MainWindow.shapes.Add(new GLine(new Line() { X1 = p1.Value.X, Y1 = p1.Value.Y, X2 = p2.Value.X, Y2 = p2.Value.Y, StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black) }));
                 p1 = p2 = null;
             }
         }
@@ -484,7 +489,7 @@ namespace CumCAM
         public override void Draw(MouseButtonEventArgs e)
         {
             GEllipse ge = new GEllipse(new Ellipse () { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black), Width = MainWindow.radius * 2, Height = MainWindow.radius * 2 });
-            
+            MainWindow.shapes.Add(ge);
             Canvas.SetTop(ge.shape, MainWindow.ChangeValues(e.GetPosition(scaleCanvas)).Y - MainWindow.radius);
             Canvas.SetLeft(ge.shape, MainWindow.ChangeValues(e.GetPosition(scaleCanvas)).X - MainWindow.radius);
             
@@ -517,6 +522,7 @@ namespace CumCAM
             {
                 GRectangle gr = new GRectangle(new Rectangle () { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black) });
                 MainWindow.SetRectangle(gr.shape as Rectangle, p1.Value, p2.Value);
+                MainWindow.shapes.Add(gr);
                 p1 = null;
                 p2 = null;
             }
@@ -542,7 +548,6 @@ namespace CumCAM
         {
             shape = _shape;
             shape.DataContext = this;
-            MainWindow.shapes.Add(this);
             scaleCanvas.Children.Add(shape);
         }
         public Visibility Visibility { get => shape.Visibility; set => shape.Visibility = value; }
