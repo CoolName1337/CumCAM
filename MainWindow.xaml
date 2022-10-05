@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CumCAM"
         mc:Ignorable="d"
-        Title="MainWindow" Height="600" Width="900">
+        Title="Вася и Жения продуктион" Height="600" Width="900">
    
     <Grid>
         <Grid.ColumnDefinitions>
@@ -21,7 +21,7 @@
         <Canvas x:Name="handleCanvas" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Background="AntiqueWhite" 
                 MouseMove="handleCanvas_MouseMove" MouseLeave="handleCanvas_MouseLeave"
                 MouseLeftButtonDown="handleCanvas_MouseLeftButtonDown" MouseWheel="handleCanvas_MouseWheel" MouseDown="handleCanvas_MouseDown"
-                MouseUp="handleCanvas_MouseUp">
+                MouseUp="handleCanvas_MouseUp" >
             <Canvas x:Name="scaleCanvas">
 
                 <Canvas x:Name="aimCanvas">
@@ -44,15 +44,26 @@
         <StackPanel x:Name="figuresPanel" Orientation="Vertical" MouseDown="figuresPanel_MouseDown">
             <Grid >
                 <Rectangle x:Uid="0" Fill="LightGray" Stroke="Gray" StrokeLineJoin="Round" RadiusX="20" RadiusY="5" Height="50"  StrokeThickness="2"></Rectangle>
-                <Line x:Uid ="0" X1="10" X2="40" Y1="10" Y2="40" Stroke="Black" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeThickness="2"></Line>
-            </Grid>
-            <Grid>
-                <Rectangle x:Uid="1" Fill="LightGray" Stroke="Gray" StrokeLineJoin="Round" RadiusX="20" RadiusY="5" Height="50" StrokeThickness="2"></Rectangle>
-                <Ellipse x:Uid="1" Width="40" Height="40" Stroke="Black" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeThickness="2"></Ellipse>
+                <Line x:Uid ="0" X1="25" X2="40" Y1="25" Y2="40" Stroke="Black" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeThickness="2"></Line>
+                <Polygon x:Uid="0" Fill="Black" Points="15, 15, 35, 25, 25, 35"  Stroke="Black" StrokeThickness="2"></Polygon>
             </Grid>
             <Grid >
+                <Rectangle x:Uid="1" Fill="LightGray" Stroke="Gray" StrokeLineJoin="Round" RadiusX="20" RadiusY="5" Height="50"  StrokeThickness="2"></Rectangle>
+                <Line x:Uid ="1" X1="10" X2="40" Y1="10" Y2="40" Stroke="Black" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeThickness="2"></Line>
+            </Grid>
+            <Grid>
                 <Rectangle x:Uid="2" Fill="LightGray" Stroke="Gray" StrokeLineJoin="Round" RadiusX="20" RadiusY="5" Height="50" StrokeThickness="2"></Rectangle>
-                <Rectangle x:Uid="2" Margin="5" Stroke="Black" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeThickness="2"></Rectangle>
+                <Ellipse x:Uid="2" Width="40" Height="40" Stroke="Black" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeThickness="2"></Ellipse>
+            </Grid>
+            <Grid >
+                <Rectangle x:Uid="3" Fill="LightGray" Stroke="Gray" StrokeLineJoin="Round" RadiusX="20" RadiusY="5" Height="50" StrokeThickness="2"></Rectangle>
+                <Rectangle x:Uid="3" Margin="5" Stroke="Black" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeThickness="2"></Rectangle>
+            </Grid>
+            <Grid>
+                <Rectangle x:Uid="4" Fill="LightGray" Stroke="Gray" StrokeLineJoin="Round" RadiusX="20" RadiusY="5" Height="50" StrokeThickness="2"></Rectangle>
+                <Ellipse x:Uid="4" Fill="Black" Width="5" Height="5" Stroke="Black" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeThickness="2"></Ellipse>
+                <Line x:Uid="4" X1="5" X2="45" Y1="25" Y2="25" Stroke="Black" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeThickness="1"></Line>
+                <Line x:Uid="4" X1="25" X2="25" Y1="45" Y2="5" Stroke="Black" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeThickness="1"></Line>
             </Grid>
         </StackPanel>
 

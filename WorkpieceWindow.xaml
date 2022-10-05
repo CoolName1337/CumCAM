@@ -32,7 +32,7 @@
         <TextBox Name="ZBox" Grid.Row="3" FontSize="40" PreviewTextInput="size_PreviewTextInput" Grid.Column="1" Margin="20"/>
 
         <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Width="225" Height="50" >
-            <Button Name="CreateBtn" FontSize="20" Content="Create" Click="Create_Click" Width="100" Margin="5"/>
+            <Button Name="CreateBtn" IsDefault="True" FontSize="20" Content="Create" Click="Create_Click" Width="100" Margin="5"/>
             <Button Name="CancelBtn" FontSize="20" Content="Cancel" Click="Cancel_Click" Width="100" Margin="5"/>
         </StackPanel>
     </Grid>

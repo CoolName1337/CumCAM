@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data.Common;
+using System.Diagnostics.Contracts;
 using System.IO.Packaging;
 using System.Linq;
 using System.Reflection.Metadata;
@@ -22,6 +23,54 @@ using System.Windows.Shapes;
 
 namespace CumCAM
 {
+
+    static class ZeroPoint
+    {
+
+        private static Vector position;
+        private static Line horizLine = new Line() { Stroke = new SolidColorBrush(Colors.Red), StrokeThickness = 2 };
+        private static Line vertLine = new Line() { Stroke = new SolidColorBrush(Colors.Green), StrokeThickness = 2 };
+        private static Canvas MovedCanvas;
+
+        public static Vector Position
+        {
+            get => position;
+            set
+            {
+                position = value;
+                Canvas.SetTop(horizLine, value.Y);
+                Canvas.SetLeft(horizLine, value.X);
+                Canvas.SetTop(vertLine, value.Y);
+                Canvas.SetLeft(vertLine, value.X);
+            }
+        }
+
+        public static void ConfiguratePoints()
+        {
+            double resWidth = MainWindow.MainCanvas.ActualWidth / MainWindow.kSize;
+            double resHeight = MainWindow.MainCanvas.ActualHeight / MainWindow.kSize;
+
+            vertLine.Y1 = -resHeight - Canvas.GetTop(MovedCanvas);
+            vertLine.Y2 = resHeight*2 ;
+
+            horizLine.X1 = -resWidth - Canvas.GetLeft(MovedCanvas);
+            horizLine.X2 = resWidth*2 ;
+        }
+
+        public static void Initialize(Canvas canv, Sample sample, int x = 200, int y = 200)
+        {
+            MovedCanvas = canv;
+            Position = new Vector(x, y);
+            horizLine.X1 = sample.Width * 2;
+            horizLine.X2 = -horizLine.X1;
+            vertLine.Y1 = sample.Height * 2;
+            vertLine.Y2 = -vertLine.Y1;
+            canv.Children.Add(horizLine);
+            canv.Children.Add(vertLine);
+        }
+
+    }
+
     class Sample
     {
         private Rectangle rect = new Rectangle() { Stroke = new SolidColorBrush(Colors.Gray), StrokeThickness = 4 };
@@ -136,7 +185,7 @@ namespace CumCAM
 
         public static void Initialize(Panel canv)
         {
-            
+
             InitLines();
             InitHandle();
             Root = canv;
@@ -149,13 +198,16 @@ namespace CumCAM
     {
         public static List<GShape> shapes = new List<GShape>();
         public GShape takedShape;
+        private static Canvas mainCanvas;
+        public static Canvas MainCanvas { get => mainCanvas; private set => mainCanvas = value; }
 
-        public static Vector ZeroPos = new Vector(200, 350);
+        private bool IsWantToChangeZeroPointPosition;
+
         Sample CurrentSample;
 
         public Point? p1, p2;
         public static int radius = 10;
-        private double kSize = 1;
+        public static double kSize = 1;
         static int step = 1;
 
         public static int Step
@@ -171,6 +223,7 @@ namespace CumCAM
         public MainWindow()
         {
             InitializeComponent();
+            MainCanvas = handleCanvas;
             GShape.scaleCanvas = scaleCanvas;
 
             CommandBinding commandBinding = new CommandBinding();
@@ -178,16 +231,19 @@ namespace CumCAM
             commandBinding.Executed += CommandCtrlZ;
             this.CommandBindings.Add(commandBinding);
 
-            (int x, int y) = WorkpieceWindow.GetWP;
-            CreateSample(x,y);
-
-
             InitializeAll();
         }
 
         private void InitializeAll()
         {
-            VisualGrid.StartPosition = ZeroPos;
+
+            (int width, int height) = WorkpieceWindow.GetWP;
+            CreateSample(width, height);
+
+            ZeroPoint.Initialize(scaleCanvas, CurrentSample);
+            CurrentSample.Position = ZeroPoint.Position - new Vector(0, CurrentSample.Height);
+
+            VisualGrid.StartPosition = ZeroPoint.Position;
             VisualGrid.sample = CurrentSample;
             VisualGrid.Initialize(scaleCanvas);
             VisualGrid.Visibility = Visibility.Hidden;
@@ -198,8 +254,8 @@ namespace CumCAM
 
         public static Point ChangeValues(Point p)                 // Для получения кратных координат, возвращает координаты кратные int step (по умолчанию step = 1)
         {
-            var changedValueX = ZeroPos.X % step + (int)p.X / step * step + step * Math.Round(( p.X % step) / step);
-            var changedValueY = ZeroPos.Y % step + (int)p.Y / step * step + step * Math.Round(( p.Y % step) / step);
+            var changedValueX = ZeroPoint.Position.X % step + (int)p.X / step * step + step * Math.Round((p.X % step) / step);
+            var changedValueY = ZeroPoint.Position.Y % step + (int)p.Y / step * step + step * Math.Round((p.Y % step) / step);
             return new Point(changedValueX, changedValueY);
         }
 
@@ -214,12 +270,13 @@ namespace CumCAM
         {
             if (aimCanvas.Visibility == Visibility.Hidden && aimButton.IsChecked.Value) aimCanvas.Visibility = Visibility.Visible;
             Point p = ChangeValues(e.GetPosition(scaleCanvas));               // округление координат точки сразу после получения этих координат
-            posLabel.Content = $"{-ZeroPos.X + p.X}; {ZeroPos.Y - p.Y}";
+            posLabel.Content = $"{-ZeroPoint.Position.X + p.X}; {ZeroPoint.Position.Y - p.Y}";
             var pForAim = ChangeValues(e.GetPosition(scaleCanvas));
             SetAim(pForAim);
             //new Point(p.X + Canvas.GetLeft(scaleCanvas) * kSize, p.Y + Canvas.GetTop(scaleCanvas) * kSize)
             if (isMoved)
             {
+                ZeroPoint.ConfiguratePoints();
                 Vector delta = (e.GetPosition(scaleCanvas) - LastMouseWheelPos) * kSize;
                 var realSamplePosX = Canvas.GetLeft(scaleCanvas) + CurrentSample.Position.X * kSize;
                 var realSamplePosY = Canvas.GetTop(scaleCanvas) + CurrentSample.Position.Y * kSize;
@@ -262,20 +319,27 @@ namespace CumCAM
             if (e.Source is Shape shape)
             {
                 ResetRectColor();
+                IsWantToChangeZeroPointPosition = false;
                 UidDetect(shape.Uid).Fill = new SolidColorBrush(Colors.DarkGray);
                 radiusTB.Visibility = Visibility.Hidden;
                 switch (Convert.ToInt32(shape.Uid))
                 {
                     case 0:
-                        takedShape = TakedShapes.line;
-                        
+                        takedShape = null;
                         break;
                     case 1:
+                        takedShape = TakedShapes.line;
+                        break;
+                    case 2:
                         takedShape = TakedShapes.ellipse;
                         radiusTB.Visibility = Visibility.Visible;
                         break;
-                    case 2:
+                    case 3:
                         takedShape = TakedShapes.rectangle;
+                        break;
+                    case 4:
+                        takedShape = null;
+                        IsWantToChangeZeroPointPosition = true;
                         break;
                 }
                 CancelDraw();
@@ -286,7 +350,7 @@ namespace CumCAM
             TakedShapes.ellipse.Visibility = Visibility.Hidden;
             TakedShapes.rectangle.Visibility = Visibility.Hidden;
             TakedShapes.line.Visibility = Visibility.Hidden;
-            takedShape.Visibility = Visibility.Visible;
+            if (takedShape != null) takedShape.Visibility = Visibility.Visible;
         }
         private void ResetRectColor()
         {
@@ -308,6 +372,7 @@ namespace CumCAM
 
         private void handleCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (IsWantToChangeZeroPointPosition) ZeroPoint.Position = (Vector)ChangeValues(e.GetPosition(scaleCanvas)); 
             takedShape?.Draw(e);
         }
 
@@ -338,7 +403,6 @@ namespace CumCAM
             CurrentSample = Sample.Instance();
             CurrentSample.Height = height;
             CurrentSample.Width = width;
-            CurrentSample.Position = ZeroPos - new Vector(0, height);
             CurrentSample.Initialize(scaleCanvas);
         }
 
@@ -388,13 +452,14 @@ namespace CumCAM
         private void stepTextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Space)
-                e.Handled = true; 
+                e.Handled = true;
             if (stepTextBox.Text == string.Empty || stepTextBox.Text == "0")
                 stepTextBox.Text = "1";
         }
 
         private void CommandCtrlZ(object sender, ExecutedRoutedEventArgs e)
         {
+            TakedShapes.ResetAllPos();
             RemoveLast();
         }
         public void RemoveLast()
@@ -469,7 +534,7 @@ namespace CumCAM
         public override string GetGCode()
         {
             Line line = shape as Line;
-            return $"G00 X{line.X1 - MainWindow.ZeroPos.X} Y{-line.Y1 + MainWindow.ZeroPos.Y}\nM03 Z-5\nG01 X{line.X2 - MainWindow.ZeroPos.X} Y{-line.Y2 + MainWindow.ZeroPos.Y}\nM05 Z0\n";
+            return $"G00 X{line.X1 - ZeroPoint.Position.X} Y{-line.Y1 + ZeroPoint.Position.Y}\nM03 Z-5\nG01 X{line.X2 - ZeroPoint.Position.X} Y{-line.Y2 + ZeroPoint.Position.Y}\nM05 Z0\n";
         }
         public override void SetPos(Point p)
         {
@@ -484,21 +549,21 @@ namespace CumCAM
 
     public class GEllipse : GShape
     {
-        public GEllipse (Shape _shape) : base (_shape) { }
+        public GEllipse(Shape _shape) : base(_shape) { }
 
         public override void Draw(MouseButtonEventArgs e)
         {
-            GEllipse ge = new GEllipse(new Ellipse () { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black), Width = MainWindow.radius * 2, Height = MainWindow.radius * 2 });
+            GEllipse ge = new GEllipse(new Ellipse() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black), Width = MainWindow.radius * 2, Height = MainWindow.radius * 2 });
             MainWindow.shapes.Add(ge);
             Canvas.SetTop(ge.shape, MainWindow.ChangeValues(e.GetPosition(scaleCanvas)).Y - MainWindow.radius);
             Canvas.SetLeft(ge.shape, MainWindow.ChangeValues(e.GetPosition(scaleCanvas)).X - MainWindow.radius);
-            
+
         }
 
         public override string GetGCode()
         {
-            double PosX = Canvas.GetLeft(shape) - MainWindow.ZeroPos.X + shape.Width / 2;
-            double PosY = -Canvas.GetTop(shape) + MainWindow.ZeroPos.Y - shape.Height / 2;
+            double PosX = Canvas.GetLeft(shape) - ZeroPoint.Position.X + shape.Width / 2;
+            double PosY = -Canvas.GetTop(shape) + ZeroPoint.Position.Y - shape.Height / 2;
             return $"G03 X{PosX} Y{PosY} R{shape.Width / 2}\n";
         }
         public override void SetPos(Point p)
@@ -511,7 +576,7 @@ namespace CumCAM
 
     public class GRectangle : GShape
     {
-        
+
         public GRectangle(Shape _shape) : base(_shape) { }
 
         public override void Draw(MouseButtonEventArgs e)
@@ -520,7 +585,7 @@ namespace CumCAM
             if (p2 == null) p1 = MainWindow.ChangeValues(e.GetPosition(scaleCanvas));
             if (p1 != null && p2 != null)
             {
-                GRectangle gr = new GRectangle(new Rectangle () { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black) });
+                GRectangle gr = new GRectangle(new Rectangle() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Black) });
                 MainWindow.SetRectangle(gr.shape as Rectangle, p1.Value, p2.Value);
                 MainWindow.shapes.Add(gr);
                 p1 = null;
@@ -530,13 +595,13 @@ namespace CumCAM
 
         public override string GetGCode()
         {
-            double PosX = Canvas.GetLeft(shape) - MainWindow.ZeroPos.X;
-            double PosY = -Canvas.GetTop(shape) + MainWindow.ZeroPos.Y;
+            double PosX = Canvas.GetLeft(shape) - ZeroPoint.Position.X;
+            double PosY = -Canvas.GetTop(shape) + ZeroPoint.Position.Y;
             return $"G00 X{PosX} Y{PosY}\nM03 Z-5\nG01 X{PosX + shape.Width}\nG01 Y{PosY - shape.Height}\nG01 X{PosX}\nG01 Y{PosY}\nM05 Z0\n";
         }
 
         public override void SetPos(Point p)
-        {   
+        {
             if (p1 == null) return;
             MainWindow.SetRectangle(shape as Rectangle, p1.Value, p);
         }
@@ -566,7 +631,7 @@ namespace CumCAM
         public static GRectangle rectangle = new(new Rectangle() { StrokeThickness = 2, Stroke = new SolidColorBrush(Colors.Gray) });
         public static void ResetAllPos()
         {
-            Line _line = line.shape as Line; 
+            Line _line = line.shape as Line;
             _line.Y2 = _line.Y1 = _line.X2 = _line.X1 = 0;
             ellipse.shape.Height = ellipse.shape.Width = 0;
             rectangle.shape.Height = rectangle.shape.Width = 0;
